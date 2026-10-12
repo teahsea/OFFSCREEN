@@ -1,0 +1,21 @@
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: offscreen-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: offscreen
+      POSTGRES_PASSWORD: offscreen_dev
+      POSTGRES_DB: offscreen_db
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U offscreen -d offscreen_db"]
+      interval: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
