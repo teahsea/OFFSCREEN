@@ -1,6 +1,8 @@
 from fastapi import HTTPException
 
-from .models import PlanRequest, PlanResponse
+import json
+
+from .models import Activity, PlanRequest, PlanResponse
 from .ollama_client import OllamaClient
 
 
@@ -22,14 +24,59 @@ class Planner:
         self.ollama = OllamaClient()
 
     async def create_plan(self, request: PlanRequest) -> PlanResponse:
-        plan = await self.ollama.generate(
-            system_prompt=SYSTEM_PROMPT,
-            user_content=request.model_dump_json(),
-            response_model=PlanResponse,
+        user_content = request.model_dump_json()
+
+        for attempt in range(2):
+            try:
+                plan = await self.ollama.generate(
+                    system_prompt=SYSTEM_PROMPT,
+                    user_content=user_content,
+                    response_model=PlanResponse,
+                )
+                self._validate_plan(request, plan)
+                return plan
+            except HTTPException as error:
+                if error.status_code != 502:
+                    raise
+
+                if attempt == 1:
+                    return self._fallback_plan(request)
+
+                user_content = json.dumps(
+                    {
+                        "request": request.model_dump(mode="json"),
+                        "correction": (
+                            "The previous response was rejected: "
+                            f"{error.detail}. Create a new plan. Every activity "
+                            "must use one of the supplied goal IDs, and activity "
+                            "minutes must add up exactly to the requested minutes."
+                        ),
+                    }
+                )
+
+        return self._fallback_plan(request)
+
+    @staticmethod
+    def _fallback_plan(request: PlanRequest) -> PlanResponse:
+        goal = request.goals[0]
+        description = goal.description or goal.title
+        instructions = (
+            f"Spend {request.minutes} minutes making offline progress on "
+            f"{description}. Stop when the time is up and note where to begin next."
         )
 
-        self._validate_plan(request, plan)
-        return plan
+        return PlanResponse(
+            title=f"Time for {goal.title}"[:120],
+            activities=[
+                Activity(
+                    goal_id=goal.id,
+                    title=goal.title[:120],
+                    minutes=request.minutes,
+                    instructions=instructions[:2_000],
+                )
+            ],
+            motivation="A small, focused session is still meaningful progress.",
+        )
 
     @staticmethod
     def _validate_plan(request: PlanRequest, plan: PlanResponse) -> None:

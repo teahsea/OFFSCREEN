@@ -71,6 +71,7 @@ export class SessionsService {
         .values({
           user_id: userId,
           title: plan.title,
+          motivation: plan.motivation,
           requested_minutes: input.minutes,
           energy: input.energy,
           completed_at: null,
@@ -96,7 +97,6 @@ export class SessionsService {
       return {
         ...session,
         activities,
-        motivation: plan.motivation,
       };
     });
   }

@@ -35,6 +35,7 @@ export interface SessionTable {
   id: Generated<string>;
   user_id: string;
   title: string | null;
+  motivation: string;
   requested_minutes: number;
   energy: EnergyLevel;
   status: Generated<SessionStatus>;

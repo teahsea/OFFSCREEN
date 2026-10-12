@@ -25,6 +25,7 @@ CREATE TABLE sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     title TEXT,
+    motivation TEXT NOT NULL,
     requested_minutes INT NOT NULL CHECK (requested_minutes > 0),
     energy TEXT NOT NULL
         CHECK (energy IN ('low', 'medium', 'high')),
